@@ -60,7 +60,6 @@
     <div v-else>
       <Breadcrumb
         :items="[
-          { text:'Home', to:'/' },
           { text:'Books', to:'/books' },
           { text:book.title, active:true }
         ]"

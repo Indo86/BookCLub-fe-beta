@@ -37,11 +37,11 @@ async function registerUser(formData) {
 
 .layout-wraper {
   width: 100%;
-  max-width: 400px;
+  max-width: 450px;
   margin: 0 auto;
 }
 
 .alert {
-  max-width: 400px;
+  max-width: 450px;
 }
 </style>

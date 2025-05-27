@@ -9,7 +9,7 @@ import BooksDetailView from '@/views/BooksDetailView.vue'
 import BooksSwap from '@/views/BooksSwap.vue'
 import RequestDetailView from '@/views/RequestDetailView.vue'
 import BookEditView from '@/views/BookEditView.vue'
-
+import EditSwap from '@/views/EditSwap.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -33,6 +33,11 @@ const router = createRouter({
     path: '/books/swap',      // swap dijalankan via query ?bookId=…
     name: 'books-swap',       
     component: BooksSwap 
+  },
+  { 
+    path: '/books/swap/edit/:id',      // swap dijalankan via query ?bookId=…
+    name: 'book-swap-edit',       
+    component: EditSwap, 
   },
  {
     path: '/exchange/requests/:id',

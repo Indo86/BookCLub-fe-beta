@@ -5,142 +5,92 @@
     { text:'Books', to:'/books' },
     { text:'Exchange', active:true }
   ]"/>
+
   <div class="main-content py-4">
     <h2 class="mb-4">Tukar Buku</h2>
     <div class="row">
-      <!-- target book -->
+      <!-- Target Book -->
       <div class="col-md-4 text-center">
-        <img :src="targetBook.coverUrl" class="img-fluid rounded shadow-sm mb-3"/>
+        <img
+          :src="targetBook.coverUrl"
+          class="img-fluid rounded shadow-sm mb-3"
+        />
         <h5>{{ targetBook.title }}</h5>
         <p class="text-muted">by {{ targetBook.author }}</p>
       </div>
-      <!-- pilih milik sendiri -->
-      <div class="col-md-8">
-        <h5>Pilih Buku Milik Anda</h5>
-        <div class="row g-3">
-          <!-- no longer filtering here; myBooks is already only available ones -->
-          <div v-for="b in myBooks" :key="b.id" class="col-sm-6 col-lg-4">
-            <label
-              class="card h-100 cursor-pointer"
-              :class="{ 'border-primary': selectedId === b.id }"
-            >
-              <input
-                type="radio"
-                v-model="selectedId"
-                :value="b.id"
-                class="visually-hidden"
-              />
-              <img :src="b.coverUrl" class="card-img-top"/>
-              <div class="card-body">
-                <h6 class="card-title mb-1">{{ b.title }}</h6>
-                <p class="text-muted small">{{ b.author }}</p>
-              </div>
-            </label>
-          </div>
-          <div v-if="myBooks.length === 0" class="col-12 text-center text-muted">
-            Anda tidak memiliki buku “available” untuk ditukar.
-          </div>
-        </div>
 
-        <!-- hanya tampilkan form kalau ada buku yg bisa dipilih -->
-        <div v-if="myBooks.length" class="exchange-form mt-4">
-          <!-- ... rest of your form unchanged ... -->
-          <div class="mb-3">
-            <label class="form-label">Pesan untuk Pemilik</label>
-            <textarea
-              v-model="form.message"
-              class="form-control"
-              rows="3"
-              placeholder="Tulis pesan singkat…"
-            />
-          </div>
-          <!-- metode, alamat/lokasi, tanggal & waktu... -->
-          <div class="row mb-4">
-            <div class="col-md-6">
-              <label class="form-label">Tanggal</label>
-              <input v-model="form.date" type="date" class="form-control"/>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Waktu</label>
-              <input v-model="form.time" type="time" class="form-control"/>
-            </div>
-          </div>
-          <button class="btn btn-success" @click="submitRequest">
-            Kirim Request
-          </button>
-        </div>
+      <!-- Swap Form -->
+      <div class="col-md-8">
+        <SwapForm
+          :books="myBooks"
+          title="Pilih Buku Milik Anda"
+          empty-message="Anda tidak memiliki buku 'available' untuk ditukar."
+          mode="create"
+          submit-button-text="Kirim Request"
+          @submit="handleSubmitRequest"
+          @book-selected="handleBookSelected"
+        />
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Navbar from '@/components/layouts/Navbar.vue'
 import Breadcrumb from '@/components/commons/Breadcrumb.vue'
+import SwapForm from '@/components/Form/SwapForm.vue'
 import api from '@/services/api.js'
 
 const route = useRoute()
 const router = useRouter()
-
-const form = reactive({
-  message: '',
-  method: 'meet',
-  address: '',
-  location: '',
-  date: '',
-  time: ''
-})
-const targetBook = ref({})
-const myBooks = ref([])       // will hold only available books
-const selectedId = ref(null)
 const bookId = Number(route.query.bookId)
+
+const targetBook = ref({})
+const myBooks = ref([])
+const selectedBookId = ref(null)
 
 onMounted(async () => {
   try {
-    // ambil detail buku target
+    // Detail buku target
     const { book } = await api.getBookDetail(bookId)
-    targetBook.value = { ...book, coverUrl: book.imageUrl }
+    targetBook.value = {
+      ...book,
+      coverUrl: book.imageUrl || 'https://ui-avatars.com/api/?name=No+Cover'
+    }
 
-    // ambil semua buku milik user & hanya yang status='available'
+    // Buku milik user yang available (kecuali target)
     const { books } = await api.getMyBooks()
     const own = books.map(b => ({
       ...b,
-      coverUrl: b.imageUrl || 'https://via.placeholder.com/200x300?text=No+Cover'
+      coverUrl: b.imageUrl || 'https://ui-avatars.com/api/?name=No+Cover'
     }))
-    const available = own.filter(b => b.id !== bookId && b.status === 'available')
-    myBooks.value = available
+    myBooks.value = own.filter(b => b.id !== bookId && b.status === 'available')
 
-    // pilih buku pertama (jika ada)
-    if (available.length) {
-      selectedId.value = available[0].id
-    }
   } catch (e) {
     console.error(e)
     alert('Gagal mengambil data buku.')
   }
 })
 
-async function submitRequest() {
-  if (!selectedId.value) {
-    return alert('Pilih buku Anda yang “available” terlebih dahulu.')
-  }
-  if (!form.date || !form.time) {
-    return alert('Pilih tanggal & waktu.')
-  }
+const handleBookSelected = (bookId) => {
+  selectedBookId.value = bookId
+}
+
+const handleSubmitRequest = async (formData) => {
   try {
     await api.requestExchange({
-      offeredBookId: selectedId.value,
+      offeredBookId: formData.selectedBookId,
       requestedBookId: bookId,
-      messages: form.message,
-      method: form.method,
-      location: form.method === 'meet' ? form.location : undefined,
-      address: form.method === 'delivery' ? form.address : undefined,
-      meetingDatetime: `${form.date}T${form.time}`
+      messages: formData.message,
+      method: formData.method,
+      location: formData.location,
+      address: formData.address,
+      meetingDatetime: formData.meetingDatetime
     })
     alert('Request terkirim.')
-    router.push({ name: 'home' })
+    router.push({ name: 'profile', query: { tab: 'history' } })
   } catch (e) {
     console.error(e)
     alert(e.response?.data?.message || 'Gagal kirim request.')
@@ -149,6 +99,5 @@ async function submitRequest() {
 </script>
 
 <style scoped>
-.card { cursor: pointer; transition: border-color .2s }
-.card.border-primary { border-width: 2px !important }
+/* Custom styles if needed */
 </style>

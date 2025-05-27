@@ -110,6 +110,7 @@
               <th>Buku Ditawarkan</th>
               <th>Dengan</th>
               <th>Status</th>
+              <th>Aksi</th>
             </tr>
           </thead>
           <tbody>
@@ -117,10 +118,10 @@
               v-for="h in history"
               :key="h.id"
               class="clickable-row"
-              @click="goDetail(h.id)"
+             @click="goDetail(h.id)"
             >
               <td>{{ formatDate(h.date) }}</td>
-              <td>{{ h.bookRequested.title }}</td>
+              <td  >{{ h.bookRequested.title }}</td>
               <td>{{ h.bookOffered.title }}</td>
               <td>{{ h.partner.username }}</td>
               <td>
@@ -213,6 +214,7 @@ function statusClass(s) {
 function goToEdit(b) {
   router.push({ name:'book-edit', params:{ id: b.id }})
 }
+
 
 async function confirmDelete(b) {
   if (!confirm(`Hapus buku “${b.title}”?`)) return
