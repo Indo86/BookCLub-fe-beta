@@ -8,7 +8,7 @@ const props = defineProps({
   user: {
     type: Object,
     required: true,
-    // { id, username, email, whatsappNumber, addressUser, avatar_url }
+    // { id, username, email, whatsappNumber, addressUser, avatarUrl }
   }
 })
 const emit = defineEmits(['close', 'save'])
@@ -19,7 +19,7 @@ const form = reactive({
   email: '',
   whatsappNumber: '',
   addressUser: '',
-  avatar_url: ''
+  avatarUrl: ''
 })
 
 // Validation errors
@@ -35,7 +35,7 @@ watch(() => props.show, open => {
     form.email          = props.user.email          || ''
     form.whatsappNumber = props.user.whatsappNumber || ''
     form.addressUser    = props.user.addressUser    || ''
-    form.avatar_url     = props.user.avatar_url     || ''
+    form.avatarUrl     = props.user.avatarUrl     || ''
     errors.username = ''
     errors.email    = ''
   }
@@ -65,7 +65,7 @@ function onSave() {
     email:          form.email,
     whatsappNumber: form.whatsappNumber,
     addressUser:    form.addressUser,
-    avatar_url:     form.avatar_url
+    avatarUrl:     form.avatarUrl
   })
 }
 
@@ -144,7 +144,7 @@ function onClose() {
             <div class="mb-3">
               <label class="form-label">Avatar URL</label>
               <input
-                v-model="form.avatar_url"
+                v-model="form.avatarUrl"
                 type="url"
                 class="form-control"
                 placeholder="https://..."

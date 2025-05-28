@@ -1,150 +1,140 @@
 <template>
-  <Navbar/>
-  <Breadcrumb :items="[
-    { text:'Home', to:'/' },
-    { text:'Books', to:'/books' },
-    { text:'Edit Exchange', active:true }
-  ]"/>
-  
+  <Navbar />
+  <Breadcrumb 
+    :items="[
+      { text:'Home', to:'/' },
+      { text:'Books', to:'/books' },
+      { text:'Edit Exchange', active:true }
+    ]"
+  />
   <div class="main-content py-4">
-    <h2 class="mb-4">Edit Request Pertukaran</h2>
-    
-    <div v-if="!loaded" class="text-center py-5">
-      <div class="spinner-border text-primary" role="status"></div>
+    <!-- 1. Loading -->
+    <div v-if="loading" class="text-center py-5">
+      <div class="spinner-border"></div>
     </div>
-    
+
+    <!-- 2. Error -->
+    <div v-else-if="error" class="alert alert-danger">
+      {{ error }}
+    </div>
+
+    <!-- 3. Form -->
     <div v-else>
-      <!-- Jika bukan 'pending', redirect atau inform -->
-      <div v-if="request.status !== 'pending'" class="alert alert-warning">
+      <h2 class="mb-4">Edit Request Pertukaran</h2>
+
+      <!-- only allow edit when still pending -->
+      <div v-if="exchange.status !== 'pending'" class="alert alert-warning">
         Hanya request dengan status <strong>pending</strong> yang bisa diedit.
       </div>
-      
-      <div v-else class="row">
-        <!-- Target Book -->
-        <div class="col-md-4 text-center">
-          <img
-            :src="targetBook.coverUrl"
-            class="img-fluid rounded shadow-sm mb-3"
-          />
-          <h5>{{ targetBook.title }}</h5>
-          <p class="text-muted">by {{ targetBook.author }}</p>
-        </div>
-        
-        <!-- Swap Form -->
-        <div class="col-md-8">
-          <SwapForm
-            :books="myBooks"
-            title="Pilih Ulang Buku Anda"
-            empty-message="Tidak ada buku yang tersedia untuk ditukar."
-            mode="edit"
-            :initial-data="initialFormData"
-            :show-cancel-button="true"
-            submit-button-text="Simpan Perubahan"
-            cancel-button-text="Batal"
-            @submit="handleSubmitEdit"
-            @cancel="handleCancel"
-            @book-selected="handleBookSelected"
-          />
-        </div>
+      <div v-else>
+        <SwapForm
+          :targetBook="targetBook"
+          :myBooks="myBooks"
+          :selectedId="selectedId"
+          :form="form"
+          title="Pilih Ulang Buku Anda"
+          emptyMessage="Tidak ada buku yang tersedia untuk ditukar."
+          submitText="Simpan Perubahan"
+          cancelText="Batal"
+          :showCancel="true"
+          @submit="onSubmitEdit"
+          @cancel="onCancel"
+        />
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import Navbar from '@/components/layouts/Navbar.vue'
+import Navbar     from '@/components/layouts/Navbar.vue'
 import Breadcrumb from '@/components/commons/Breadcrumb.vue'
-import SwapForm from '@/components/Form/SwapForm.vue'
-import api from '@/services/api.js'
+import SwapForm   from '@/components/Form/SwapForm.vue'
+import api        from '@/services/api.js'
 
-const route = useRoute()
-const router = useRouter()
-const id = Number(route.params.id)
+const route   = useRoute()
+const router  = useRouter()
+const id      = Number(route.params.id)   // exchange id!
 
-const request = ref(null)
-const loaded = ref(false)
+// state
+const loading    = ref(true)
+const error      = ref(null)
+const exchange   = ref(null)
 const targetBook = ref({})
-const myBooks = ref([])
-const selectedBookId = ref(null)
-
-// Computed property untuk initial data form
-const initialFormData = computed(() => {
-  if (!request.value) return {}
-  
-  return {
-    selectedBookId: request.value.offeredBook?.id || null,
-    message: request.value.messages || '',
-    method: request.value.method || 'meet',
-    location: request.value.location || '',
-    address: request.value.address || '',
-    date: request.value.meetingDatetime ? request.value.meetingDatetime.slice(0, 10) : '',
-    time: request.value.meetingDatetime ? request.value.meetingDatetime.slice(11, 16) : ''
-  }
+const myBooks    = ref([])
+const selectedId = ref(null)
+const form       = reactive({
+  message: '',
+  method: 'meet',
+  location: '',
+  address: '',
+  date: '',
+  time: ''
 })
 
 onMounted(async () => {
   try {
-    // Fetch detail exchange
-    const { data } = await api.getExchangeDetail(id)
-    request.value = data
-    
-    if (data.status !== 'pending') {
-      loaded.value = true
-      return
+    // 1) Load the exchange detail
+    const { exchange: ex } = await api.getExchangeDetail(id)
+    exchange.value = ex
+
+    // 2) Prefill form data
+    selectedId.value  = ex.offeredBook.id
+    form.message      = ex.messages || ''
+    form.method       = ex.method   || 'meet'
+    form.location     = ex.location || ''
+    form.address      = ex.address  || ''
+    if (ex.meetingDatetime) {
+      form.date = ex.meetingDatetime.slice(0,10)
+      form.time = ex.meetingDatetime.slice(11,16)
     }
 
-    // Target book
+    // 3) Set targetBook to the one being requested
+    const rb = ex.requestedBook
     targetBook.value = {
-      ...data.requestedBook,
-      coverUrl: data.requestedBook.imageUrl || 'https://ui-avatars.com/api/?name=No+Cover'
+      ...rb,
+      coverUrl: rb.imageUrl || 'https://via.placeholder.com/300x400?text=No+Cover'
     }
 
-    // Buku user: include current offered + available
+    // 4) Load user's books (including the one they already offered)
     const { books } = await api.getMyBooks()
     myBooks.value = books
-      .filter(b => b.status === 'available' || b.id === data.offeredBook.id)
+      .filter(b => b.status === 'available' || b.id === ex.offeredBook.id)
       .map(b => ({
         ...b,
-        coverUrl: b.imageUrl || 'https://ui-avatars.com/api/?name=No+Cover'
+        coverUrl: b.imageUrl || 'https://via.placeholder.com/200x300?text=No+Cover'
       }))
-
-    loaded.value = true
   } catch (e) {
-    console.error(e)
-    alert('Gagal load data.')
-    router.back()
+    console.error('Gagal muat data edit:', e)
+    error.value = e.response?.data?.message || 'Gagal memuat data edit.'
+  } finally {
+    loading.value = false
   }
 })
 
-const handleBookSelected = (bookId) => {
-  selectedBookId.value = bookId
-}
-
-const handleSubmitEdit = async (formData) => {
+async function onSubmitEdit({ selectedId: offeredBookId, form: f }) {
   try {
     await api.updateExchange(id, {
-      offeredBookId: formData.selectedBookId,
-      messages: formData.message,
-      method: formData.method,
-      location: formData.location,
-      address: formData.address,
-      meetingDatetime: formData.meetingDatetime
+      offeredBookId,
+      messages:        f.message,
+      method:          f.method,
+      location:        f.method === 'meet' ? f.location : undefined,
+      address:         f.method === 'delivery' ? f.address : undefined,
+      meetingDatetime: `${f.date}T${f.time}`
     })
-    alert('Request berhasil diperbarui.')
-    router.push({ name: 'profile', query: { tab: 'history' } })
+    router.push({ name:'profile', query:{ tab:'history' } })
   } catch (e) {
-    console.error(e)
-    alert('Gagal memperbarui request.')
+    console.error('Gagal edit:', e)
+    alert(e.response?.data?.message || 'Gagal mengubah request.')
   }
 }
 
-const handleCancel = () => {
+function onCancel() {
   router.back()
 }
 </script>
 
 <style scoped>
-/* Custom styles if needed */
+/* Bootstrap styling sudah diaplikasikan */
 </style>

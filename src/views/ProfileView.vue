@@ -10,7 +10,7 @@
         <div class="card text-center shadow-sm">
           <div class="card-body">
             <img
-              :src="user.avatar_url || defaultAvatar"
+              :src="user.avataUrl || defaultAvatar"
               class="rounded-circle mb-3"
               width="120" height="120"
             />

@@ -1,3 +1,4 @@
+<!-- src/views/RequestDetailView.vue -->
 <template>
   <Navbar />
 
@@ -84,7 +85,7 @@
 
       <!-- Message -->
       <h5>Pesan</h5>
-      <p class="mb-4">{{ request.message }}</p>
+      <p class="mb-4">{{ request.message || '–' }}</p>
 
       <!-- Exchange Details -->
       <h5>Detail Pertukaran</h5>
@@ -97,44 +98,67 @@
         {{ request.date }} {{ request.time }}
       </p>
 
-      <!-- Action Buttons (Hanya Requester yang bisa aksi dan kontak WA owner) -->
+      <!-- Action Buttons -->
       <div class="d-flex gap-2 mt-4">
-        <!-- Requester sees Accept / Decline when pending -->
-        <template v-if="currentUserId === request.senderId && request.status === 'pending'">
-          <button class="btn btn-success" @click="respond('accepted')">Terima</button>
-          <button class="btn btn-danger"  @click="respond('declined')">Tolak</button>
+        <!-- Only owner can accept/decline or complete -->
+        
+        <template v-if="currentUserId === request.ownerId">
+          <button
+            v-if="request.status === 'pending'"
+            class="btn btn-success"
+            @click="respond('in_exchange')"
+          >
+            Terima
+          </button>
+          <button
+            v-if="request.status === 'pending'"
+            class="btn btn-danger"
+            @click="respond('declined')"
+          >
+            Tolak
+          </button>
+          <button
+            v-if="request.status === 'in_exchange'"
+            class="btn btn-primary"
+            @click="respond('completed')"
+          >
+            Selesai
+          </button>
+          <!-- Owner can chat WA to requester -->
+          <a
+            v-if="request.sender.whatsappNumber"
+            :href="`https://wa.me/${request.sender.whatsappNumber}`"
+            target="_blank"
+            class="btn btn-success"
+          >
+            Chat WA Requester
+          </a>
         </template>
-        <!-- Requester sees “Selesai” when already accepted -->
-        <button
-          v-if="currentUserId === request.senderId && request.status === 'accepted'"
-          class="btn btn-primary"
-          @click="respond('completed')"
-        >
-          Selesai
-        </button>
-        <!-- Requester can chat WA ke owner -->
-        <a
-          v-if="currentUserId === request.senderId && request.owner.whatsappNumber"
-          :href="`https://wa.me/${request.owner.whatsappNumber}`"
-          target="_blank"
-          class="btn btn-success"
-        >
-          Chat WA ke Owner
-        </a>
 
-        <button
-          v-if="request.status === 'pending'"
-          class="btn btn-sm btn-outline-primary me-2"
-          @click="goEdit(f.id)"
-        >
-          Edit
-        </button>
-        <button
-          class="btn btn-sm btn-outline-danger"
-          @click="deleteHistory(f.id)"
-        >
-          Hapus
-        </button>
+        <!-- Only requester can edit/delete or chat owner -->
+        <template v-else>
+          <a
+            v-if="request.owner.whatsappNumber"
+            :href="`https://wa.me/${request.owner.whatsappNumber}`"
+            target="_blank"
+            class="btn btn-success"
+          >
+            Chat WA Owner
+          </a>
+          <button
+            v-if="request.status === 'pending'"
+            class="btn btn-outline-primary"
+            @click="goEdit(request.id)"
+          >
+            Edit
+          </button>
+          <button
+            class="btn btn-outline-danger"
+            @click="deleteHistory(request.id)"
+          >
+            Hapus
+          </button>
+        </template>
       </div>
     </div>
 
@@ -154,25 +178,27 @@ import api from '@/services/api.js'
 const props = defineProps({
   id: { type: [String, Number], required: true }
 })
-const router        = useRouter()
-const request       = ref(null)
-const loading       = ref(true)
+const router = useRouter()
+
+const request = ref(null)
+const loading = ref(true)
 const currentUserId = ref(null)
-const defaultCover  = 'https://ui-avatars.com/api/?name=No+Cover'
+const defaultCover = 'https://ui-avatars.com/api/?name=No+Cover'
 const defaultAvatar = 'https://ui-avatars.com/api/?name=User'
 
 function formatDate(ts) {
   const d = new Date(ts)
   return (
-    d.toLocaleDateString('id-ID', { day: 'numeric', month:'short', year:'numeric' }) +
+    d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) +
     ' ' +
     d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
   )
 }
 
 function statusClass(s) {
-  if (s === 'accepted') return 'bg-success'
-  if (s === 'declined') return 'bg-danger'
+  if (s === 'in_exchange') return 'bg-info text-dark'
+  if (s === 'completed')   return 'bg-success'
+  if (s === 'declined')    return 'bg-danger'
   return 'bg-warning text-dark'
 }
 
@@ -182,6 +208,7 @@ async function respond(action) {
     request.value.status = action
   } catch (err) {
     console.error('Gagal merespon:', err)
+    alert('Terjadi kesalahan saat merespon permintaan.')
   }
 }
 
@@ -189,38 +216,47 @@ function goBack() {
   router.back()
 }
 
-function goEdit(b) {
-  router.push({ name:'book-edit-swap', params:{ id: b.id }})
+function goEdit(exchangeId) {
+  router.push({ name: 'book-swap-edit', params: { id: exchangeId } })
 }
 
-
+async function deleteHistory(exchangeId) {
+  if (!confirm('Hapus request pertukaran ini?')) return
+  try {
+    await api.deleteExchange(exchangeId)
+    alert('Request berhasil dihapus.')
+    router.push({ name: 'profile', query: { tab: 'history' } })
+  } catch (err) {
+    console.error(err)
+    alert('Gagal menghapus request.')
+  }
+}
 
 onMounted(async () => {
   try {
-    // Ambil profil user
+    // ambil profil user
     const profile = await api.getProfile()
     currentUserId.value = profile.data.data.id
-
-    // Fetch semua exchange
+ 
+    // fetch both sent & received
     const { exchanges: rec }  = await api.getReceivedExchanges()
     const { exchanges: sent } = await api.getMyExchangeRequests()
     const all = [...rec, ...sent]
     const idNum = Number(props.id)
-    const f     = all.find(e => e.id === idNum)
-
-    if (!f) {
-      router.replace({ name: 'request-list' })
+    const found = all.find(e => e.id === idNum)
+ 
+    if (!found) {
+      router.replace({ name: 'profile', query: { tab: 'history' } })
       return
     }
 
-    // guard data requester & owner
-    const requester = f.requester || {}
-    const owner     = f.owner     || {}
-
+    // normalize into `request` object
+    const requester = found.requester || {}
+    const owner     = found.owner     || {}
     request.value = {
-      id:        f.id,
-      senderId:  requester.id,   // Penanda siapa requester
-      ownerId:   owner.id,       // Penanda siapa owner
+      id:        found.id,
+      ownerId:   owner.id,
+      senderId:  requester.id,
       sender: {
         username:       requester.username || '–',
         email:          requester.email    || '–',
@@ -234,26 +270,29 @@ onMounted(async () => {
         avatarUrl:      owner.avatarUrl      || defaultAvatar
       },
       requestedBook: {
-        ...f.requestedBook,
-        coverUrl: f.requestedBook.imageUrl || defaultCover
+        ...found.requestedBook,
+        coverUrl: found.requestedBook.imageUrl || defaultCover
       },
       offeredBook: {
-        ...f.offeredBook,
-        coverUrl: f.offeredBook.imageUrl || defaultCover
+        ...found.offeredBook,
+        coverUrl: found.offeredBook.imageUrl || defaultCover
       },
-      message:    f.messages || '',
-      location:   f.location || '',
-      date:       f.meetingDatetime?.slice(0,10) || '',
-      time:       f.meetingDatetime?.slice(11,16) || '',
-      createdAt:  f.createdAt,
-      status:     f.status
+      message:    found.messages || '',
+      location:   found.location || '',
+      date:       found.meetingDatetime?.slice(0,10) || '',
+      time:       found.meetingDatetime?.slice(11,16) || '',
+      createdAt:  found.createdAt,
+      status:     found.status
     }
   } catch (err) {
-    console.error('Error di mounted hook:', err)
+    console.error(err)
+    alert('Gagal memuat detail request.')
+    router.back()
   } finally {
     loading.value = false
   }
 })
+
 </script>
 
 <style scoped>

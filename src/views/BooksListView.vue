@@ -18,11 +18,11 @@
     </div>
 
     <!-- Grid -->
- <div class="row g-4">
+    <div class="row g-4">
       <div
-        class="col-sm-6 col-md-4 col-lg-3"
         v-for="b in paginatedBooks"
         :key="b.id"
+        class="col-sm-6 col-md-4 col-lg-3"
       >
         <BookCard
           :book="b"
@@ -36,6 +36,7 @@
         Tidak ada buku yang cocok.
       </div>
     </div>
+
     <!-- Pagination -->
     <nav class="mt-4" v-if="totalPages>1">
       <ul class="pagination justify-content-center">
@@ -70,11 +71,11 @@ const perPage     = 8
 
 onMounted(async () => {
   try {
-    // 1) ambil profil untuk dapatkan userId
-    const profile = await api.getProfile()
-    userId.value = profile.data.data.id
+    // 1) ambil profil
+    const prof = await api.getProfile()
+    userId.value = prof.data.data.id
 
-    // 2) ambil daftar semua buku
+    // 2) ambil semua buku, tapi destruct sesuai yang dikembalikan
     const { books: list } = await api.getAllBooks()
     books.value = list.map(b => ({
       ...b,
@@ -84,6 +85,7 @@ onMounted(async () => {
     console.error('Gagal memuat data:', e)
   }
 })
+  
 
 const genres = computed(() =>
   Array.from(new Set(books.value.map(b => b.genre).filter(Boolean)))
@@ -104,20 +106,27 @@ const paginatedBooks = computed(() => {
   return filteredBooks.value.slice(start, start + perPage)
 })
 
-async function goToEdit(book) {
+function changePage(p) {
+  if (p < 1 || p > totalPages.value) return
+  page.value = p
+}
+
+function goToEdit(book) {
   router.push({ name:'book-edit', params:{ id: book.id } })
 }
+
 async function confirmDelete(book) {
-  if (confirm(`Hapus buku "${book.title}"?`)) {
-    await api.deleteBook(book.id)
-    books.value = books.value.filter(b => b.id !== book.id)
-  }
+  if (!confirm(`Hapus buku "${book.title}"?`)) return
+  await api.deleteBook(book.id)
+  books.value = books.value.filter(b => b.id !== book.id)
 }
+
 function goToExchange(book) {
   router.push({ name:'books-swap', query:{ bookId: book.id } })
 }
 </script>
 
 <style scoped>
-/* gunakan Bootstrap */
+/* Bootstrap sudah memadai */
 </style>
+  

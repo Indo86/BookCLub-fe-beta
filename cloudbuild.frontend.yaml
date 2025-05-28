@@ -1,0 +1,31 @@
+# cloudbuild.frontend.yaml
+steps:
+  # 1. Install dependencies
+  - name: "gcr.io/cloud-builders/npm"
+    entrypoint: bash
+    args:
+      - -c
+      - |
+          if [ ! -d "node_modules" ]; then
+            echo "Installing dependencies..."
+            npm ci
+          else
+            echo "Skipping npm install, node_modules exists."
+          fi
+
+  # 2. Build frontend
+  - name: "gcr.io/cloud-builders/npm"
+    entrypoint: bash
+    args:
+      - -c
+      - |
+          npm run build
+
+  # 3. Deploy ke App Engine
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: "gcloud"
+    args: ["app", "deploy", "app.yaml", "--quiet"]
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+timeout: "1200s"

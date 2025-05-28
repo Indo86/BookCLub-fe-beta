@@ -19,8 +19,7 @@
           v-for="stat in [
             { title: 'Total Buku', count: totalBooks },
             { title: 'Request Pending', count: pendingRequests },
-            { title: 'Tukar Sukses', count: successfulTrades },
-            { title: 'Artikel', count: totalPosts }
+            { title: 'Tukar Sukses', count: successfulTrades }
           ]"
           :key="stat.title"
           class="col-md-3 mb-3"

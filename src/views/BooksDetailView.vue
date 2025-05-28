@@ -1,50 +1,3 @@
-<script setup>
-  import { ref, onMounted, defineProps } from 'vue'
-  import { useRoute, useRouter } from 'vue-router'
-
-  import Navbar     from '@/components/layouts/Navbar.vue'
-  import Breadcrumb from '@/components/commons/Breadcrumb.vue'
-  import api        from '@/services/api.js'
-
-  // deklarasi prop id
-  const props  = defineProps({ id: [ String, Number ] })
-  const route  = useRoute()
-  const router = useRouter()
-
-  const book            = ref(null)
-  const owner           = ref({})
-  const currentUserId   = ref(null)
-  const loading         = ref(true)
-  const error           = ref(null)
-
-  const defaultCover    = 'https://via.placeholder.com/300x400?text=No+Cover'
-  const defaultAvatar   = 'https://via.placeholder.com/48?text=Avatar'
-
-  onMounted(async () => {
-    try {
-      // ambil profil
-      const p = await api.getProfile()
-      currentUserId.value = p.data.data.id
-
-      // ambil detail buku
-      const id = Number(props.id)    // or route.params.id if you prefer
-      const { book: b } = await api.getBookDetail(id)
-      book.value        = { ...b, coverUrl: b.imageUrl }
-      owner.value       = b.owner || {}
-    } catch (e) {
-      console.error(e)
-      error.value = 'Gagal ambil detail buku.'
-    } finally {
-      loading.value = false
-    }
-  })
-
-  function requestExchange() {
-    router.push({ name: 'books-swap', query: { bookId: book.value.id } })
-  }
-</script>
-
-
 <template>
   <Navbar/>
 
@@ -66,6 +19,7 @@
       />
 
       <div class="row">
+        <!-- Cover & Meta -->
         <div class="col-md-4 text-center">
           <img
             :src="book.coverUrl || defaultCover"
@@ -85,7 +39,7 @@
 
           <div class="d-flex align-items-center mt-4">
             <img
-              :src="owner.avatar_url || defaultAvatar"
+              :src="owner.avatarUrl || defaultAvatar"
               width="48" height="48"
               class="rounded-circle me-2"
             />
@@ -97,19 +51,69 @@
             </div>
           </div>
 
-             <button
+          <button
             v-if="currentUserId !== owner.id"
             class="btn btn-primary mt-4"
             @click="requestExchange"
           >
-             <i class="bi bi-arrow-left-right me-1"></i>
-             Tukar Buku
-           </button>
+            <i class="bi bi-arrow-left-right me-1"></i>
+            Tukar Buku
+          </button>
         </div>
       </div>
     </div>
   </div>
 </template>
+
+<script setup>
+import { ref, onMounted, defineProps } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import Navbar     from '@/components/layouts/Navbar.vue'
+import Breadcrumb from '@/components/commons/Breadcrumb.vue'
+import api        from '@/services/api.js'
+
+const props          = defineProps({ id: [String, Number] })
+const route          = useRoute()
+const router         = useRouter()
+
+const book           = ref({})
+const owner          = ref({})
+const currentUserId  = ref(null)
+const loading        = ref(true)
+const error          = ref(null)
+
+const defaultCover   = 'https://via.placeholder.com/300x400?text=No+Cover'
+const defaultAvatar  = 'https://via.placeholder.com/48?text=Avatar'
+
+onMounted(async () => {
+  try {
+    // 1) profil user
+    const p = await api.getProfile()
+    currentUserId.value = p.data.data.id
+
+    // 2) detail book (wrapper or axios)
+    const got = await api.getBookDetail(props.id)
+    const b   = got.book ?? (got.data?.data) 
+    book.value = {
+      ...b,
+      coverUrl: b.imageUrl || defaultCover
+    }
+
+    // 3) owner (kalau ada relasi), fallback kosong
+    owner.value = b.owner || {}
+
+  } catch (e) {
+    console.error(e)
+    error.value = 'Gagal ambil detail buku.'
+  } finally {
+    loading.value = false
+  }
+})
+
+function requestExchange() {
+  router.push({ name:'books-swap', query:{ bookId: book.value.id } })
+}
+</script>
 
 <style scoped>
 /* pakai Bootstrap saja */

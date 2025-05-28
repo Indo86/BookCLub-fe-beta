@@ -11,7 +11,7 @@ const currentStep = ref(1);
 const username = ref('');
 const whatsappNumber = ref('');
 const addressUser = ref('');
-const avatar_url = ref('');
+const avatarUrl = ref('');
 
 // Data akun (tahap 2)
 const email = ref('');
@@ -52,7 +52,7 @@ const registerUser = () => {
       username: username.value.trim(),
       whatsappNumber: whatsappNumber.value.trim(),
       addressUser: addressUser.value.trim(),
-      avatar_url: avatar_url.value.trim() || null,
+      avatarUrl: avatarUrl.value.trim() || null,
       email: email.value.trim(),
       password: password.value
     });
@@ -68,7 +68,7 @@ const resetForm = () => {
   username.value = '';
   whatsappNumber.value = '';
   addressUser.value = '';
-  avatar_url.value = '';
+  avatarUrl.value = '';
   email.value = '';
   password.value = '';
   confirmPassword.value = '';
@@ -80,7 +80,7 @@ const handleAvatarUpload = (event) => {
   if (file) {
     const reader = new FileReader();
     reader.onload = (e) => {
-      avatar_url.value = e.target.result;
+      avatarUrl.value = e.target.result;
     };
     reader.readAsDataURL(file);
   }
@@ -163,8 +163,8 @@ const handleAvatarUpload = (event) => {
               accept="image/*"
               @change="handleAvatarUpload"
             >
-            <div v-if="avatar_url" class="avatar-preview mt-2">
-              <img :src="avatar_url" alt="Avatar Preview" class="preview-image">
+            <div v-if="avatarUrl" class="avatar-preview mt-2">
+              <img :src="avatarUrl" alt="Avatar Preview" class="preview-image">
             </div>
           </div>
           
